@@ -6,16 +6,20 @@ from plotly.subplots import make_subplots
 import re
 import zlib
 import base64
+import urllib.parse
+import requests
 
 # ==========================================
-# FUNGSI UNTUK SHARING (TIDAK MERUBAH TAMPILAN)
+# FUNGSI KOMPRESI DATA (AGAR BISA DI-SHARE)
 # ==========================================
 def encode_df(df):
+    """Mengompres data excel ke teks untuk URL"""
     json_data = df.to_json(orient='split')
     compressed = zlib.compress(json_data.encode())
     return base64.urlsafe_b64encode(compressed).decode()
 
 def decode_df(encoded_str):
+    """Mengembalikan teks URL ke data excel"""
     try:
         compressed = base64.urlsafe_b64decode(encoded_str.encode())
         json_data = zlib.decompress(compressed).decode()
@@ -26,7 +30,6 @@ def decode_df(encoded_str):
 # ==========================================
 # 1. SETUP HALAMAN & CSS PRO (IDENTIK)
 # ==========================================
-# initial_sidebar_state saya ganti ke "expanded" agar sidebar terbuka otomatis
 st.set_page_config(layout="wide", page_title="Executive Dashboard TJ", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -47,16 +50,19 @@ st.markdown("""
     /* Judul Chart */
     h6 { color: #333; font-weight: 700; text-align: center; font-size: 14px; margin-top: 5px; margin-bottom: 5px; }
     
-    /* Tombol Share Mencolok */
+    /* Tombol Share Merah Mencolok */
     div.stButton > button:first-child {
-        background-color: #FF4B4B;
-        color: white;
-        border-radius: 5px;
+        background-color: #FF4B4B !important;
+        color: white !important;
+        border-radius: 8px;
         font-weight: bold;
+        height: 3em;
+        width: 100%;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# Fungsi Pengurut Waktu
 def parse_time(t_str):
     t_str = str(t_str).lower()
     year = int(re.search(r'\d{4}', t_str).group()) if re.search(r'\d{4}', t_str) else 2025
@@ -64,13 +70,18 @@ def parse_time(t_str):
     month = next((v for k, v in months.items() if k in t_str), 12)
     return year * 100 + month
 
+# Fungsi Clean Num
 def clean_num(v):
-    if pd.isna(v): return 0
-    try: return float(v)
-    except: return v
+    if pd.isna(v) or v == "-": return 0
+    if isinstance(v, (int, float)): return float(v)
+    s = str(v).strip().replace(',', '')
+    if s.startswith('(') and s.endswith(')'): s = '-' + s[1:-1]
+    if '%' in s: return float(s.replace('%', '')) / 100
+    try: return float(s)
+    except: return 0
 
 # ==========================================
-# FUNGSI UNTUK MERENDER DASHBOARD (IDENTIK)
+# 2. FUNGSI RENDER DASHBOARD (LOGIKA ASLI)
 # ==========================================
 def render_full_dashboard(df):
     df['Waktu'] = df['Waktu'].astype(str).str.replace('\n', ' ')
@@ -87,13 +98,11 @@ def render_full_dashboard(df):
     row = df_kat[df_kat['Waktu'] == sel_waktu].iloc[0]
     
     t1.markdown(f"<h2 style='color:#003366; margin:0;'>🏢 {sel_kat}</h2>", unsafe_allow_html=True)
-    
     if pd.notna(row['LK']):
         t4.markdown(f"<a href='{row['LK']}' target='_blank'><button style='width:100%; margin-top:25px; padding:8px; background-color:#FFCC00; color:#003366; font-weight:bold; border:none; border-radius:5px; cursor:pointer;'>DOKUMEN LAPORAN KEUANGAN</button></a>", unsafe_allow_html=True)
 
     st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
     c_kiri, c_tengah, c_kanan = st.columns([1.2, 1.0, 1.8])
-
     def fmt_juta(val):
         s = f"{val/1e6:,.2f}"
         return "Rp " + s.replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -125,7 +134,7 @@ def render_full_dashboard(df):
     with c_kanan:
         fig_combo = make_subplots(specs=[[{"secondary_y": True}]])
         fig_combo.add_trace(go.Bar(x=df_kat['Waktu'], y=df_kat['Total Pendapatan'], name='Total Pendapatan', marker_color='#8ECAE6', text=df_kat['Total Pendapatan'], texttemplate='%{text:,.0f}', textposition='inside'), secondary_y=False)
-        fig_combo.add_trace(go.Scatter(x=df_kat['Waktu'], y=df_kat['Laba/Rugi'], name='Laba / Rugi', mode='lines+markers+text', line=dict(color='#023047', width=4), marker=dict(size=10, line=dict(width=2, color='white')), text=df_kat['Laba/Rugi'], texttemplate='%{text:,.0f}', textposition='top center'), secondary_y=True)
+        fig_combo.add_trace(go.Scatter(x=df_kat['Waktu'], y=df_kat['Laba / Rugi' if 'Laba / Rugi' in df_kat.columns else 'Laba/Rugi'], name='Laba / Rugi', mode='lines+markers+text', line=dict(color='#023047', width=4), marker=dict(size=10, line=dict(width=2, color='white')), text=df_kat['Laba / Rugi' if 'Laba / Rugi' in df_kat.columns else 'Laba/Rugi'], texttemplate='%{text:,.0f}', textposition='top center'), secondary_y=True)
         fig_combo.update_layout(separators=",.", height=300, margin=dict(t=30, b=0, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="center", x=0.5), hovermode="x unified", xaxis_title=None)
         fig_combo.update_yaxes(visible=False, secondary_y=False)
         fig_combo.update_yaxes(visible=False, secondary_y=True)
@@ -139,49 +148,30 @@ def render_full_dashboard(df):
         st.markdown("<h6>⚖️ Liabilitas & Ekuitas</h6>", unsafe_allow_html=True)
 
 # ==========================================
-# 2. LOGIKA HALAMAN (UTAMA)
+# 3. LOGIKA HALAMAN
 # ==========================================
 params = st.query_params
 
 if "data" in params:
-    # --- MODE VIEW (USER B) ---
+    # USER B: MODE VIEWER
     df_decoded = decode_df(params["data"])
     if df_decoded is not None:
         render_full_dashboard(df_decoded)
-        if st.sidebar.button("🗑️ Hapus Tampilan & Buat Baru"):
+        if st.sidebar.button("🗑️ Reset Dashboard"):
             st.query_params.clear()
             st.rerun()
     else:
-        st.error("Link tidak valid atau data rusak.")
+        st.error("Link tidak valid.")
 else:
-    # --- MODE UPLOAD (USER A) ---
-    st.title("📂 Dashboard Keuangan")
-    uploaded_file = st.file_uploader("Silahkan Unggah File Excel Anda", type=['xlsx', 'csv'])
+    # USER A: MODE UPLOADER & SHARE
+    st.title("📂 Executive Dashboard")
+    uploaded_file = st.file_uploader("Upload Excel Kamu", type=['xlsx'])
 
     if uploaded_file:
         try:
             df = pd.read_excel(uploaded_file, header=None, skiprows=3)
-            df.columns = [
-                'Waktu', 'Kategori', 'LK', 'Total Aset', 'Kas Setara Kas', 'COGS Ratio', 'EBITDA', 
-                'Net Profit Margin', 'ROI', 'Laba/Rugi', 'Fee', 'Non-Fee', 
-                'Total Pendapatan', 'Total Liabilitas', 'Total Ekuitas'
-            ]
+            df.columns = ['Waktu', 'Kategori', 'LK', 'Total Aset', 'Kas Setara Kas', 'COGS Ratio', 'EBITDA', 'Net Profit Margin', 'ROI', 'Laba/Rugi', 'Fee', 'Non-Fee', 'Total Pendapatan', 'Total Liabilitas', 'Total Ekuitas']
             
-            # --- BAGIAN SHARE YANG MENCOLOK ---
-            st.warning("⚠️ **FITUR SHARING**: Klik tombol di bawah untuk mendapatkan link visualisasi.")
-            if st.button("🚀 GENERATE LINK SHARE (AGAR BISA DIKIRIM)"):
-                encoded_string = encode_df(df)
-                # GANTI LINK INI DENGAN LINK DASHBOARD ASLI ANDA
-                base_url = "https://dashboard-keuangan-tj.streamlit.app" 
-                share_url = f"{base_url}/?data={encoded_string}"
-                
-                st.success("✅ **LINK BERHASIL DIBUAT!** Salin link di bawah ini:")
-                st.code(share_url)
-                st.info("Kirim link tersebut ke atasan atau rekan Anda.")
-            st.markdown("---")
-
-            # Jalankan tampilan dashboard
-            render_full_dashboard(df)
-
-        except Exception as e:
-            st.error(f"Error: {e}")
+            # --- FITUR SHARE DENGAN TINYURL ---
+            st.markdown("<div style='background-color:#FFEB3B; padding:20px; border-radius:10px; border:2px solid #000;'>", unsafe_allow_html=True)
+            st.write("### 🚀 MAU SHARE
