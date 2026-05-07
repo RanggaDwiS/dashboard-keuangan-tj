@@ -22,11 +22,11 @@ def decode_df(encoded_str):
         compressed = base64.urlsafe_b64decode(encoded_str.encode())
         json_data = zlib.decompress(compressed).decode()
         return pd.read_json(json_data, orient='split')
-    except:
+    except Exception:
         return None
 
 # ==========================================
-# 1. SETUP HALAMAN & CSS PRO
+# 1. SETUP HALAMAN & CSS PRO (IDENTIK)
 # ==========================================
 st.set_page_config(layout="wide", page_title="Executive Dashboard TJ", initial_sidebar_state="expanded")
 
@@ -50,7 +50,6 @@ st.markdown("""
         color: white !important;
         border-radius: 8px;
         font-weight: bold;
-        height: 3em;
         width: 100%;
     }
     </style>
@@ -142,45 +141,50 @@ def render_full_dashboard(df):
         st.markdown("<h6>⚖️ Liabilitas & Ekuitas</h6>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. LOGIKA HALAMAN
+# 3. LOGIKA UTAMA
 # ==========================================
 params = st.query_params
 
 if "data" in params:
+    # --- USER B (VIEWER) ---
     df_decoded = decode_df(params["data"])
     if df_decoded is not None:
         render_full_dashboard(df_decoded)
-        if st.sidebar.button("🗑️ Reset Dashboard"):
+        if st.sidebar.button("🗑️ Reset & Buat Baru"):
             st.query_params.clear()
             st.rerun()
     else:
-        st.error("Link tidak valid atau data terpotong.")
+        st.error("Data terputong atau link tidak valid.")
 else:
+    # --- USER A (UPLOADER) ---
     st.title("📂 Executive Dashboard")
-    uploaded_file = st.file_uploader("Upload Excel Kamu", type=['xlsx'])
+    uploaded_file = st.file_uploader("Upload Excel Kamu Di Sini", type=['xlsx'])
 
     if uploaded_file:
         try:
             df = pd.read_excel(uploaded_file, header=None, skiprows=3)
-            # Ambil 15 kolom sesuai struktur excel kamu
+            # Ambil 15 kolom sesuai tabel Excel kamu
             df = df.iloc[:, :15]
             df.columns = ['Waktu', 'Kategori', 'LK', 'Total Aset', 'Kas Setara Kas', 'COGS Ratio', 'EBITDA', 'Net Profit Margin', 'ROI', 'Laba/Rugi', 'Fee', 'Non-Fee', 'Total Pendapatan', 'Total Liabilitas', 'Total Ekuitas']
             
             st.markdown("<div style='background-color:#FFEB3B; padding:20px; border-radius:10px; border:2px solid #000;'>", unsafe_allow_html=True)
             st.write("### 🚀 SHARE DASHBOARD")
-            if st.button("GENERATE LINK PENDEK"):
+            if st.button("KLIK UNTUK GENERATE LINK PENDEK (SHARE)"):
                 encoded = encode_df(df)
-                # PASTIKAN LINK INI ADALAH LINK ASLI DASHBOARD KAMU
-                base_url = "https://dashboard-keuangan-tj.streamlit.app" 
+                
+                # Gunakan URL dasar aplikasi kamu
+                base_url = "https://dashboard-keuangan-tj.streamlit.app"
                 long_url = f"{base_url}/?data={encoded}"
                 
                 try:
+                    # Menggunakan TinyURL API agar link pendek
                     api_url = f"http://tinyurl.com/api-create.php?url={urllib.parse.quote(long_url)}"
-                    short_url = requests.get(api_url).text
-                    st.success("✅ **LINK PENDEK BERHASIL!**")
+                    short_url = requests.get(api_url, timeout=10).text
+                    st.success("✅ **LINK PENDEK BERHASIL DIBUAT!**")
                     st.code(short_url)
-                except:
-                    st.warning("Gunakan link panjang ini:")
+                    st.info("Kirim link pendek di atas ke rekan Anda.")
+                except Exception:
+                    st.warning("Gagal memendekkan otomatis. Ini link panjangnya (copy semua):")
                     st.code(long_url)
             st.markdown("</div><br>", unsafe_allow_html=True)
 
