@@ -72,14 +72,19 @@ else:
     st.title("📂 Financial Dashboard Uploader")
     uploaded_file = st.file_uploader("Upload Excel Laporan Keuangan", type=['xlsx'])
 
-    if uploaded_file:
-        # Proses Baca Excel sesuai gambar
-        df_raw = pd.read_excel(uploaded_file, header=None, skiprows=3)
-        df_raw.columns = [
-            'Waktu', 'Total Aset', 'Kas Setara Kas', 'COGS Ratio', 'EBITDA', 
-            'Net Profit Margin', 'ROI', 'Laba/Rugi', 'Fee', 'Non-Fee', 
-            'Total Pendapatan', 'Total Liabilitas', 'Total Ekuitas'
-        ]
+   if uploaded_file:
+    # 1. Baca excel tanpa menentukan kolom dulu
+    df_raw = pd.read_excel(uploaded_file, header=None, skiprows=3)
+    
+    # 2. Ambil hanya 13 kolom pertama (biar tidak error kalau ada kolom kosong di kanan)
+    df_raw = df_raw.iloc[:, :13] 
+    
+    # 3. Baru kasih nama
+    df_raw.columns = [
+        'Waktu', 'Total Aset', 'Kas Setara Kas', 'COGS Ratio', 'EBITDA', 
+        'Net Profit Margin', 'ROI', 'Laba/Rugi', 'Fee', 'Non-Fee', 
+        'Total Pendapatan', 'Total Liabilitas', 'Total Ekuitas'
+    ]
         
         # Bersihkan semua angka
         for col in df_raw.columns[1:]:
