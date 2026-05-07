@@ -174,4 +174,24 @@ else:
             
             # --- FITUR SHARE DENGAN TINYURL ---
             st.markdown("<div style='background-color:#FFEB3B; padding:20px; border-radius:10px; border:2px solid #000;'>", unsafe_allow_html=True)
-            st.write("### 🚀 MAU SHARE
+            st.write("### 🚀 MAU SHARE DASHBOARD INI?")
+            if st.button("KLIK UNTUK GENERATE LINK PENDEK"):
+                encoded = encode_df(df)
+                # GANTI LINK INI DENGAN LINK ASLI APLIKASI KAMU
+                base_url = "https://dashboard-keuangan-tj.streamlit.app" 
+                long_url = f"{base_url}/?data={encoded}"
+                
+                try:
+                    # Request link pendek ke TinyURL
+                    api_url = f"http://tinyurl.com/api-create.php?url={urllib.parse.quote(long_url)}"
+                    short_url = requests.get(api_url).text
+                    st.success("✅ **LINK PENDEK BERHASIL DIBUAT!**")
+                    st.code(short_url)
+                except:
+                    st.warning("Gagal memperpendek otomatis. Gunakan link panjang ini:")
+                    st.code(long_url)
+            st.markdown("</div><br>", unsafe_allow_html=True)
+
+            render_full_dashboard(df)
+        except Exception as e:
+            st.error(f"Error: {e}")
