@@ -87,7 +87,8 @@ def render_full_dashboard(df):
     sel_waktu = t3.selectbox("Periode", list_waktu)
     row = df_kat[df_kat['Waktu'] == sel_waktu].iloc[0]
     
-    t1.markdown(f<h2 style='color:#003366; margin:0;'> {sel_kat}</h2>, unsafe_allow_html=True)
+    # PERBAIKAN DI SINI: Menambahkan tanda kutip pada f-string
+    t1.markdown(f"<h2 style='color:#003366; margin:0;'>🏢 {sel_kat}</h2>", unsafe_allow_html=True)
     
     if pd.notna(row['LK']):
         t4.markdown(f"<a href='{row['LK']}' target='_blank'><button style='width:100%; margin-top:25px; padding:8px; background-color:#FFCC00; color:#003366; font-weight:bold; border:none; border-radius:5px; cursor:pointer;'>DOKUMEN LAPORAN KEUANGAN</button></a>", unsafe_allow_html=True)
