@@ -160,21 +160,21 @@ def render_dashboard(df):
         st.markdown("<div class='chart-title'><h6>⚖️ Liabilitas & Ekuitas</h6></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. ALUR KERJA UTAMA (DIPERBAIKI & ANTI-GAGAL)
+# 3. ALUR KERJA UTAMA (PINDAH SERVER KE NPOINT)
 # ==========================================
 params = st.query_params
-headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
 # JIKA ADA LINK SHARE YANG DIBUKA
 if "id" in params:
     paste_id = params["id"]
     try:
-        url_target = f"https://dpaste.com/{paste_id}.txt"
-        req = requests.get(url_target, headers=headers, timeout=10)
+        # Menarik data dari server npoint
+        url_target = f"https://api.npoint.io/{paste_id}"
+        req = requests.get(url_target, timeout=10)
         
         if req.status_code == 200:
-            # MEMPERBAIKI CARA BACA DATA (ANTI-ERROR "FILE DOES NOT EXIST")
-            raw_data = json.loads(req.text)
+            # Npoint otomatis membaca sebagai JSON
+            raw_data = req.json()
             df_shared = pd.DataFrame(raw_data)
             
             st.info("👀 Anda sedang melihat Dashboard (Versi Link)")
@@ -184,7 +184,7 @@ if "id" in params:
                 
             render_dashboard(df_shared)
         else:
-            st.error(f"Gagal memuat! Data cloud tidak ditemukan atau sudah dihapus. (Status Code: {req.status_code})")
+            st.error(f"Gagal memuat! Data tidak ditemukan. (Status Code: {req.status_code})")
             
     except Exception as e:
         st.error(f"Error Sistem saat menarik data: {e}")
@@ -216,23 +216,24 @@ else:
             # --- TOMBOL GENERATE LINK ---
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🚀 GENERATE LINK SHARE (BAGIKAN VISUALISASI INI)", type="primary", use_container_width=True):
-                with st.spinner("Mengunggah data secara aman..."):
+                with st.spinner("Mengunggah data ke server baru..."):
                     json_data = df.to_json(orient='records')
+                    headers = {'Content-Type': 'application/json'}
                     
-                    # Cek Upload ke Cloud
-                    resp = requests.post("https://dpaste.com/api/v2/", data={'content': json_data, 'expiry_days': 365}, headers=headers)
+                    # Upload ke server npoint.io
+                    resp = requests.post("https://api.npoint.io", data=json_data, headers=headers)
                     
-                    if resp.status_code in [200, 201]:
-                        paste_url = resp.text.strip()
-                        paste_id = paste_url.split('/')[-1].replace('.txt', '')
+                    if resp.status_code == 200:
+                        # Ambil ID dari balasan server
+                        paste_id = resp.json().get('id')
                         
                         base_url = "https://dashboard-tj.streamlit.app"
                         share_url = f"{base_url}/?id={paste_id}"
                         
-                        st.success("✅ BERHASIL! Link di bawah ini 100% AMAN dari blokir. Silakan di-copy:")
+                        st.success("✅ BERHASIL! Link ini menggunakan server baru dan 100% aman. Silakan di-copy:")
                         st.code(share_url)
                     else:
-                        st.error(f"Gagal membuat link. Server cloud menolak. Detail Error: {resp.status_code} - {resp.text}")
+                        st.error(f"Gagal membuat link. Server cloud menolak. Status: {resp.status_code}")
             
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
             render_dashboard(df)
