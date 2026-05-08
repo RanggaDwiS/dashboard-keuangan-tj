@@ -160,7 +160,7 @@ def render_dashboard(df):
         st.markdown("<div class='chart-title'><h6>⚖️ Liabilitas & Ekuitas</h6></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. ALUR KERJA UTAMA (PINDAH SERVER KE NPOINT)
+# 3. ALUR KERJA UTAMA (SERVER JSONBLOB - SUPER STABIL)
 # ==========================================
 params = st.query_params
 
@@ -168,12 +168,11 @@ params = st.query_params
 if "id" in params:
     paste_id = params["id"]
     try:
-        # Menarik data dari server npoint
-        url_target = f"https://api.npoint.io/{paste_id}"
+        # Menarik data dari server JsonBlob
+        url_target = f"https://jsonblob.com/api/jsonBlob/{paste_id}"
         req = requests.get(url_target, timeout=10)
         
         if req.status_code == 200:
-            # Npoint otomatis membaca sebagai JSON
             raw_data = req.json()
             df_shared = pd.DataFrame(raw_data)
             
@@ -216,22 +215,29 @@ else:
             # --- TOMBOL GENERATE LINK ---
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🚀 GENERATE LINK SHARE (BAGIKAN VISUALISASI INI)", type="primary", use_container_width=True):
-                with st.spinner("Mengunggah data ke server baru..."):
+                with st.spinner("Mengunggah data ke server stabil..."):
                     json_data = df.to_json(orient='records')
-                    headers = {'Content-Type': 'application/json'}
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
                     
-                    # Upload ke server npoint.io
-                    resp = requests.post("https://api.npoint.io", data=json_data, headers=headers)
+                    # Upload ke server jsonblob.com
+                    resp = requests.post("https://jsonblob.com/api/jsonBlob", data=json_data, headers=headers)
                     
-                    if resp.status_code == 200:
-                        # Ambil ID dari balasan server
-                        paste_id = resp.json().get('id')
+                    if resp.status_code in [200, 201]:
+                        # JsonBlob otomatis membalas dengan link lokasi data
+                        blob_url = resp.headers.get('Location')
                         
-                        base_url = "https://dashboard-tj.streamlit.app"
-                        share_url = f"{base_url}/?id={paste_id}"
-                        
-                        st.success("✅ BERHASIL! Link ini menggunakan server baru dan 100% aman. Silakan di-copy:")
-                        st.code(share_url)
+                        if blob_url:
+                            paste_id = blob_url.split('/')[-1]
+                            base_url = "https://dashboard-tj.streamlit.app"
+                            share_url = f"{base_url}/?id={paste_id}"
+                            
+                            st.success("✅ BERHASIL! Link ini menggunakan server JsonBlob yang tangguh. Silakan di-copy:")
+                            st.code(share_url)
+                        else:
+                            st.error("Gagal mendapatkan ID dari server.")
                     else:
                         st.error(f"Gagal membuat link. Server cloud menolak. Status: {resp.status_code}")
             
