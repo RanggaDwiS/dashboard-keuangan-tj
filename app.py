@@ -60,8 +60,18 @@ def render_dashboard(df):
     
     t1.markdown(f"<h2 style='color:#3B82F6; margin:0;'>🏢 {sel_kat}</h2>", unsafe_allow_html=True)
     
-    if pd.notna(row['LK']):
-        t4.markdown(f"<a href='{row['LK']}' target='_blank'><button style='width:100%; margin-top:25px; padding:8px; background-color:#FFCC00; color:#003366; font-weight:bold; border:none; border-radius:5px;'>DOKUMEN LAPORAN KEUANGAN</button></a>", unsafe_allow_html=True)
+    # --- PERBAIKAN TOMBOL LINK ---
+    link_doc = str(row['LK']).strip()
+    if pd.notna(row['LK']) and link_doc.lower() != 'nan' and link_doc != '':
+        # Tambahkan https:// jika tidak ada, agar tidak dikira link lokal Streamlit
+        if not link_doc.startswith('http'):
+            link_doc = 'https://' + link_doc
+            
+        t4.markdown(f"""
+            <a href='{link_doc}' target='_blank' style='display: block; width: 100%; margin-top: 25px; padding: 8px; background-color: #FFCC00; color: #003366; font-weight: bold; text-align: center; border-radius: 5px; text-decoration: none;'>
+                DOKUMEN LAPORAN KEUANGAN
+            </a>
+        """, unsafe_allow_html=True)
 
     st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
     c_kiri, c_tengah, c_kanan = st.columns([1.2, 1.0, 1.8])
@@ -103,7 +113,15 @@ def render_dashboard(df):
             judul_kontribusi = "🏢 Kontribusi Pendapatan (Fee vs Non-Fee)"
 
         fig_cont = px.bar(x=x_vals, y=y_vals, orientation='h')
-        fig_cont.update_traces(marker_color='#003366', text=x_vals, textposition='outside', texttemplate='<b>%{text:,.0f}</b>', cliponaxis=False)
+        # --- PERBAIKAN TEKS INSIDE CHART 1 ---
+        fig_cont.update_traces(
+            marker_color='#003366', 
+            text=x_vals, 
+            textposition='inside', # Berubah jadi inside
+            texttemplate='<b>%{text:,.0f}</b>', 
+            textfont=dict(color='white'), # Warna teks jadi putih
+            cliponaxis=False
+        )
         fig_cont.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', separators=",.", height=260, margin=dict(t=20,b=0,l=0,r=60), xaxis_title=None, yaxis_title=None, xaxis_visible=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=False))
         st.plotly_chart(fig_cont, use_container_width=True)
         st.markdown(f"<div class='chart-title'><h6>{judul_kontribusi}</h6></div>", unsafe_allow_html=True)
@@ -130,7 +148,18 @@ def render_dashboard(df):
         pend_list = df_kat['Total Pendapatan'].tolist()
         lr_list = df_kat['Laba/Rugi'].tolist()
 
-        fig_combo.add_trace(go.Bar(x=waktu_list, y=pend_list, name='Total Pendapatan', marker_color='#003366', text=pend_list, texttemplate='<b>%{text:,.0f}</b>', textposition='outside', cliponaxis=False), secondary_y=False)
+        # --- PERBAIKAN TEKS INSIDE CHART 2 ---
+        fig_combo.add_trace(go.Bar(
+            x=waktu_list, 
+            y=pend_list, 
+            name='Total Pendapatan', 
+            marker_color='#003366', 
+            text=pend_list, 
+            texttemplate='<b>%{text:,.0f}</b>', 
+            textposition='inside', # Berubah jadi inside
+            textfont=dict(color='white'), # Warna teks putih
+            cliponaxis=False
+        ), secondary_y=False)
 
         for i in range(1, len(waktu_list)):
             x_seg = [waktu_list[i-1], waktu_list[i]]
@@ -160,15 +189,13 @@ def render_dashboard(df):
         st.markdown("<div class='chart-title'><h6>⚖️ Liabilitas & Ekuitas</h6></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. ALUR KERJA UTAMA (SERVER JSONBLOB - SUPER STABIL)
+# 3. ALUR KERJA UTAMA (SERVER JSONBLOB)
 # ==========================================
 params = st.query_params
 
-# JIKA ADA LINK SHARE YANG DIBUKA
 if "id" in params:
     paste_id = params["id"]
     try:
-        # Menarik data dari server JsonBlob
         url_target = f"https://jsonblob.com/api/jsonBlob/{paste_id}"
         req = requests.get(url_target, timeout=10)
         
@@ -188,7 +215,6 @@ if "id" in params:
     except Exception as e:
         st.error(f"Error Sistem saat menarik data: {e}")
 
-# JIKA TIDAK ADA LINK (MODE UPLOAD NORMAL)
 else:
     area_upload = st.empty()
     uploaded_file = area_upload.file_uploader("Silahkan Unggah File Untuk Di Visualisasikan", type=['xlsx', 'csv'])
@@ -212,26 +238,19 @@ else:
             df['SortKey'] = df['Waktu'].apply(parse_time)
             df = df.sort_values('SortKey').drop(columns=['SortKey'])
             
-            # --- TOMBOL GENERATE LINK ---
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🚀 GENERATE LINK SHARE (BAGIKAN VISUALISASI INI)", type="primary", use_container_width=True):
                 with st.spinner("Mengunggah data ke server stabil..."):
                     json_data = df.to_json(orient='records')
-                    headers = {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
+                    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
                     
-                    # Upload ke server jsonblob.com
                     resp = requests.post("https://jsonblob.com/api/jsonBlob", data=json_data, headers=headers)
                     
                     if resp.status_code in [200, 201]:
-                        # JsonBlob otomatis membalas dengan link lokasi data
                         blob_url = resp.headers.get('Location')
-                        
                         if blob_url:
                             paste_id = blob_url.split('/')[-1]
-                            base_url = "https://fins-tj.streamlit.app/"
+                            base_url = "https://fins-tj.streamlit.app"
                             share_url = f"{base_url}/?id={paste_id}"
                             
                             st.success("✅ BERHASIL! Link ini menggunakan server JsonBlob yang tangguh. Silakan di-copy:")
