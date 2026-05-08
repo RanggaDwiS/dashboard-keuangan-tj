@@ -60,10 +60,10 @@ def render_dashboard(df):
     
     t1.markdown(f"<h2 style='color:#3B82F6; margin:0;'>🏢 {sel_kat}</h2>", unsafe_allow_html=True)
     
-    # --- PERBAIKAN TOMBOL LINK ---
+    # --- LOGIKA TOMBOL LINK DOKUMEN ---
     link_doc = str(row['LK']).strip()
-    if pd.notna(row['LK']) and link_doc.lower() != 'nan' and link_doc != '':
-        # Tambahkan https:// jika tidak ada, agar tidak dikira link lokal Streamlit
+    if pd.notna(row['LK']) and link_doc.lower() not in ['nan', '']:
+        # Tambahkan https:// jika tidak ada
         if not link_doc.startswith('http'):
             link_doc = 'https://' + link_doc
             
@@ -113,13 +113,15 @@ def render_dashboard(df):
             judul_kontribusi = "🏢 Kontribusi Pendapatan (Fee vs Non-Fee)"
 
         fig_cont = px.bar(x=x_vals, y=y_vals, orientation='h')
-        # --- PERBAIKAN TEKS INSIDE CHART 1 ---
+        
+        # --- PERBAIKAN: TEKS DI BAWAH (START) CHART 1 ---
         fig_cont.update_traces(
             marker_color='#003366', 
             text=x_vals, 
-            textposition='inside', # Berubah jadi inside
+            textposition='inside', 
+            insidetextanchor='start',  # <--- Ini yang bikin teks menempel di pangkal
             texttemplate='<b>%{text:,.0f}</b>', 
-            textfont=dict(color='white'), # Warna teks jadi putih
+            textfont=dict(color='white'), 
             cliponaxis=False
         )
         fig_cont.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', separators=",.", height=260, margin=dict(t=20,b=0,l=0,r=60), xaxis_title=None, yaxis_title=None, xaxis_visible=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=False))
@@ -148,7 +150,7 @@ def render_dashboard(df):
         pend_list = df_kat['Total Pendapatan'].tolist()
         lr_list = df_kat['Laba/Rugi'].tolist()
 
-        # --- PERBAIKAN TEKS INSIDE CHART 2 ---
+        # --- PERBAIKAN: TEKS DI BAWAH (START) CHART 2 ---
         fig_combo.add_trace(go.Bar(
             x=waktu_list, 
             y=pend_list, 
@@ -156,8 +158,9 @@ def render_dashboard(df):
             marker_color='#003366', 
             text=pend_list, 
             texttemplate='<b>%{text:,.0f}</b>', 
-            textposition='inside', # Berubah jadi inside
-            textfont=dict(color='white'), # Warna teks putih
+            textposition='inside',
+            insidetextanchor='start', # <--- Ini yang bikin teks menempel di bawah
+            textfont=dict(color='white'), 
             cliponaxis=False
         ), secondary_y=False)
 
@@ -183,7 +186,14 @@ def render_dashboard(df):
 
         df_stack = pd.melt(df_kat, id_vars=['Waktu'], value_vars=['Total Liabilitas', 'Total Ekuitas'])
         fig_bar = px.bar(df_stack, x='Waktu', y='value', color='variable', color_discrete_map={'Total Liabilitas':'#3B82F6', 'Total Ekuitas':'#003366'})
-        fig_bar.update_traces(textposition='inside', texttemplate='<b>%{y:,.0f}</b>', textfont=dict(color='white'))
+        
+        # --- TEKS DI BAWAH UNTUK LIABILITAS JUGA (OPSIONAL) ---
+        fig_bar.update_traces(
+            textposition='inside', 
+            insidetextanchor='start', 
+            texttemplate='<b>%{y:,.0f}</b>', 
+            textfont=dict(color='white')
+        )
         fig_bar.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', separators=",.", barmode='group', height=240, margin=dict(t=10,b=0,l=0,r=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="right", x=1, title=""), xaxis_title=None, yaxis_title=None, xaxis=dict(showgrid=False), yaxis=dict(showgrid=False))
         st.plotly_chart(fig_bar, use_container_width=True)
         st.markdown("<div class='chart-title'><h6>⚖️ Liabilitas & Ekuitas</h6></div>", unsafe_allow_html=True)
