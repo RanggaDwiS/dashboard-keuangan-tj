@@ -10,7 +10,7 @@ import json
 # ==========================================
 # 1. SETUP HALAMAN & CSS PRO
 # ==========================================
-st.set_page_config(layout="wide", page_title="Executive Dashboard TJ", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="FINS (Financial Index and Navigation for Subsidiaries)", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
