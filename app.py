@@ -172,7 +172,9 @@ if "id" in params:
         req = requests.get(url_target, headers=headers, timeout=10)
         
         if req.status_code == 200:
-            df_shared = pd.read_json(req.text, orient='records')
+            # MEMPERBAIKI CARA BACA DATA (ANTI-ERROR "FILE DOES NOT EXIST")
+            raw_data = json.loads(req.text)
+            df_shared = pd.DataFrame(raw_data)
             
             st.info("👀 Anda sedang melihat Dashboard (Versi Link)")
             if st.button("🗑️ Hapus Tampilan & Buat Baru"):
@@ -186,7 +188,7 @@ if "id" in params:
     except Exception as e:
         st.error(f"Error Sistem saat menarik data: {e}")
 
-# JIKA TIDAK ADA LINK (MODE UPLOAD)
+# JIKA TIDAK ADA LINK (MODE UPLOAD NORMAL)
 else:
     area_upload = st.empty()
     uploaded_file = area_upload.file_uploader("Silahkan Unggah File Untuk Di Visualisasikan", type=['xlsx', 'csv'])
