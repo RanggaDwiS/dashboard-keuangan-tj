@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 import requests
+import json
 
 # ==========================================
 # 1. SETUP HALAMAN & CSS PRO
