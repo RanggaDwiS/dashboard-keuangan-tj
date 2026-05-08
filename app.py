@@ -242,7 +242,7 @@ else:
                     paste_id = paste_url.split('/')[-1]
                     
                     # Buat link Streamlit yang sangat pendek
-                    base_url = "https://dashboard-keuangan-tj.streamlit.app"
+                    base_url = "https://dashboard-tj.streamlit.app"
                     share_url = f"{base_url}/?id={paste_id}"
                     
                     st.success("✅ BERHASIL! Link di bawah ini 100% AMAN dari blokir. Silakan di-copy:")
