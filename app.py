@@ -231,7 +231,7 @@ else:
                         
                         if blob_url:
                             paste_id = blob_url.split('/')[-1]
-                            base_url = "https://dashboard-tj.streamlit.app"
+                            base_url = "https://fins-tj.streamlit.app/"
                             share_url = f"{base_url}/?id={paste_id}"
                             
                             st.success("✅ BERHASIL! Link ini menggunakan server JsonBlob yang tangguh. Silakan di-copy:")
