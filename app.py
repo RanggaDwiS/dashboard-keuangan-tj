@@ -5,10 +5,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 import requests
-import json
 
 # ==========================================
-# 1. SETUP HALAMAN & CSS PRO (IDENTIK)
+# 1. SETUP HALAMAN & CSS PRO
 # ==========================================
 st.set_page_config(layout="wide", page_title="Executive Dashboard TJ", initial_sidebar_state="collapsed")
 
@@ -17,16 +16,11 @@ st.markdown("""
     .block-container { padding: 1rem 2rem 0rem 2rem !important; max-width: 100% !important; }
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Judul Chart */
     h6 { font-weight: 700; text-align: center; font-size: 14px; margin-top: 0px; margin-bottom: 0px; }
-    
-    /* Jarak ekstra untuk judul chart agar tidak mepet */
     .chart-title { margin-bottom: 30px; } 
     </style>
 """, unsafe_allow_html=True)
 
-# Fungsi Pengurut Waktu
 def parse_time(t_str):
     t_str = str(t_str).lower()
     year = int(re.search(r'\d{4}', t_str).group()) if re.search(r'\d{4}', t_str) else 2025
@@ -34,7 +28,6 @@ def parse_time(t_str):
     month = next((v for k, v in months.items() if k in t_str), 12)
     return year * 100 + month
 
-# PEMBERSIH ANGKA
 def clean_num(v):
     if pd.isna(v) or str(v).strip() == '': return 0.0
     try:
@@ -51,10 +44,9 @@ def clean_num(v):
         return 0.0 
 
 # ==========================================
-# 2. FUNGSI VISUALISASI (TIDAK DIRUBAH SAMA SEKALI)
+# 2. FUNGSI VISUALISASI
 # ==========================================
 def render_dashboard(df):
-    # --- HEADER & FILTER ---
     t1, t2, t3, t4 = st.columns([3, 1.5, 1.5, 1.5])
     
     list_kat = df['Kategori'].dropna().unique()
@@ -71,8 +63,6 @@ def render_dashboard(df):
         t4.markdown(f"<a href='{row['LK']}' target='_blank'><button style='width:100%; margin-top:25px; padding:8px; background-color:#FFCC00; color:#003366; font-weight:bold; border:none; border-radius:5px;'>DOKUMEN LAPORAN KEUANGAN</button></a>", unsafe_allow_html=True)
 
     st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-
-    # --- GRID DASHBOARD ---
     c_kiri, c_tengah, c_kanan = st.columns([1.2, 1.0, 1.8])
 
     def fmt_juta(val):
@@ -80,7 +70,6 @@ def render_dashboard(df):
         s = f"{val/1e6:,.2f}"
         return "Rp " + s.replace(',', 'X').replace('.', ',').replace('X', '.')
 
-    # FUNGSI CUSTOM METRIC CARD
     def render_metric(label, value_str, val_num):
         val_color = "#EF4444" if float(val_num) < 0 else "#003366"
         html = f"""
@@ -91,17 +80,13 @@ def render_dashboard(df):
         """
         st.markdown(html, unsafe_allow_html=True)
 
-    # --- KOLOM KIRI: METRIK & KONTRIBUSI ---
     with c_kiri:
         m1, m2 = st.columns(2)
-        with m1:
-            render_metric("Total Aset (Juta)", fmt_juta(row['Total Aset']), row['Total Aset'])
-        with m2:
-            render_metric("Kas & Setara Kas (Juta)", fmt_juta(row['Kas Setara Kas']), row['Kas Setara Kas'])
+        with m1: render_metric("Total Aset (Juta)", fmt_juta(row['Total Aset']), row['Total Aset'])
+        with m2: render_metric("Kas & Setara Kas (Juta)", fmt_juta(row['Kas Setara Kas']), row['Kas Setara Kas'])
         
         m3, m4 = st.columns(2)
-        with m3:
-            render_metric("EBITDA (Juta)", fmt_juta(row['EBITDA']), row['EBITDA'])
+        with m3: render_metric("EBITDA (Juta)", fmt_juta(row['EBITDA']), row['EBITDA'])
         with m4:
             roi_str = f"{float(row['ROI'])*100:.2f}".replace('.', ',') + "%"
             render_metric("ROI (%)", roi_str, float(row['ROI']))
@@ -117,20 +102,11 @@ def render_dashboard(df):
             judul_kontribusi = "🏢 Kontribusi Pendapatan (Fee vs Non-Fee)"
 
         fig_cont = px.bar(x=x_vals, y=y_vals, orientation='h')
-        fig_cont.update_traces(
-            marker_color='#003366', text=x_vals, textposition='outside', 
-            texttemplate='<b>%{text:,.0f}</b>', cliponaxis=False 
-        )
-        fig_cont.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', 
-            separators=",.", height=260, margin=dict(t=20,b=0,l=0,r=60), 
-            xaxis_title=None, yaxis_title=None, xaxis_visible=False,
-            xaxis=dict(showgrid=False), yaxis=dict(showgrid=False)
-        )
+        fig_cont.update_traces(marker_color='#003366', text=x_vals, textposition='outside', texttemplate='<b>%{text:,.0f}</b>', cliponaxis=False)
+        fig_cont.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', separators=",.", height=260, margin=dict(t=20,b=0,l=0,r=60), xaxis_title=None, yaxis_title=None, xaxis_visible=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=False))
         st.plotly_chart(fig_cont, use_container_width=True)
         st.markdown(f"<div class='chart-title'><h6>{judul_kontribusi}</h6></div>", unsafe_allow_html=True)
 
-    # --- KOLOM TENGAH: GAUGES ---
     with c_tengah:
         cogs_val = float(row['COGS Ratio']) * 100
         cogs_color = "#EF4444" if cogs_val < 0 else "#3B82F6"
@@ -146,7 +122,6 @@ def render_dashboard(df):
         st.plotly_chart(fig_g2, use_container_width=True)
         st.markdown("<div class='chart-title'><h6>Net Profit Margin (%)</h6></div>", unsafe_allow_html=True)
 
-    # --- KOLOM KANAN: COMBO CHART & BALANCE SHEET ---
     with c_kanan:
         st.markdown("<h6>📈 Tren Pendapatan vs Laba/Rugi (Combo)</h6>", unsafe_allow_html=True)
         fig_combo = make_subplots(specs=[[{"secondary_y": True}]])
@@ -184,36 +159,41 @@ def render_dashboard(df):
         st.markdown("<div class='chart-title'><h6>⚖️ Liabilitas & Ekuitas</h6></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. ALUR KERJA UTAMA
+# 3. ALUR KERJA UTAMA (DIPERBAIKI & ANTI-GAGAL)
 # ==========================================
 params = st.query_params
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
-# JIKA ADA LINK SHARE YANG DIBUKA (MODE VIEWER)
+# JIKA ADA LINK SHARE YANG DIBUKA
 if "id" in params:
     paste_id = params["id"]
     try:
-        # Mengambil data secara diam-diam dari cloud clipboard
-        raw_json = requests.get(f"https://dpaste.com/{paste_id}.txt").text
-        df_shared = pd.read_json(raw_json, orient='records')
+        url_target = f"https://dpaste.com/{paste_id}.txt"
+        req = requests.get(url_target, headers=headers, timeout=10)
         
-        st.info("👀 Anda sedang melihat Dashboard (Versi Link)")
-        if st.button("🗑️ Hapus Tampilan & Buat Baru"):
-            st.query_params.clear()
-            st.rerun()
+        if req.status_code == 200:
+            df_shared = pd.read_json(req.text, orient='records')
             
-        render_dashboard(df_shared)
+            st.info("👀 Anda sedang melihat Dashboard (Versi Link)")
+            if st.button("🗑️ Hapus Tampilan & Buat Baru"):
+                st.query_params.clear()
+                st.rerun()
+                
+            render_dashboard(df_shared)
+        else:
+            st.error(f"Gagal memuat! Data cloud tidak ditemukan atau sudah dihapus. (Status Code: {req.status_code})")
+            
     except Exception as e:
-        st.error("Link sudah tidak valid atau expired.")
+        st.error(f"Error Sistem saat menarik data: {e}")
 
-# JIKA TIDAK ADA LINK (MODE UPLOAD NORMAL)
+# JIKA TIDAK ADA LINK (MODE UPLOAD)
 else:
     area_upload = st.empty()
     uploaded_file = area_upload.file_uploader("Silahkan Unggah File Untuk Di Visualisasikan", type=['xlsx', 'csv'])
 
     if uploaded_file:
-        area_upload.empty() # Sembunyikan uploader setelah file masuk
+        area_upload.empty()
         try:
-            # Baca data excel
             df_raw = pd.read_excel(uploaded_file, header=None, skiprows=3)
             df_raw.dropna(axis=1, how='all', inplace=True) 
             
@@ -225,32 +205,33 @@ else:
                 df = df_raw.iloc[:, :15].copy()
                 df.columns = ['Waktu', 'Kategori', 'LK', 'Total Aset', 'Kas Setara Kas', 'COGS Ratio', 'EBITDA', 'Net Profit Margin', 'ROI', 'Laba/Rugi', 'Rev1', 'Rev2', 'Total Pendapatan', 'Total Liabilitas', 'Total Ekuitas']
             
-            # Rapikan data
             df['Waktu'] = df['Waktu'].astype(str).str.replace('\n', ' ')
             for col in df.columns[3:]: df[col] = df[col].apply(clean_num)
             df['SortKey'] = df['Waktu'].apply(parse_time)
             df = df.sort_values('SortKey').drop(columns=['SortKey'])
             
-            # --- TOMBOL GENERATE LINK BARU ---
+            # --- TOMBOL GENERATE LINK ---
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🚀 GENERATE LINK SHARE (BAGIKAN VISUALISASI INI)", type="primary", use_container_width=True):
-                with st.spinner("Membuat link yang aman..."):
-                    # Simpan data ke cloud clipboard (tanpa membuat link panjang)
+                with st.spinner("Mengunggah data secara aman..."):
                     json_data = df.to_json(orient='records')
-                    resp = requests.post("https://dpaste.com/api/v2/", data={'content': json_data, 'expiry_days': 365})
-                    paste_url = resp.text.strip()
-                    paste_id = paste_url.split('/')[-1]
                     
-                    # Buat link Streamlit yang sangat pendek
-                    base_url = "https://dashboard-tj.streamlit.app"
-                    share_url = f"{base_url}/?id={paste_id}"
+                    # Cek Upload ke Cloud
+                    resp = requests.post("https://dpaste.com/api/v2/", data={'content': json_data, 'expiry_days': 365}, headers=headers)
                     
-                    st.success("✅ BERHASIL! Link di bawah ini 100% AMAN dari blokir. Silakan di-copy:")
-                    st.code(share_url)
+                    if resp.status_code in [200, 201]:
+                        paste_url = resp.text.strip()
+                        paste_id = paste_url.split('/')[-1].replace('.txt', '')
+                        
+                        base_url = "https://dashboard-tj.streamlit.app"
+                        share_url = f"{base_url}/?id={paste_id}"
+                        
+                        st.success("✅ BERHASIL! Link di bawah ini 100% AMAN dari blokir. Silakan di-copy:")
+                        st.code(share_url)
+                    else:
+                        st.error(f"Gagal membuat link. Server cloud menolak. Detail Error: {resp.status_code} - {resp.text}")
             
             st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-            
-            # Tampilkan Visualisasi
             render_dashboard(df)
 
         except Exception as e:
